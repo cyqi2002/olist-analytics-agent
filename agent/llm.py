@@ -9,7 +9,7 @@ from typing import TypeVar
 import anthropic
 from pydantic import BaseModel
 
-from agent.config import MODEL
+from agent import config
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -39,11 +39,12 @@ def structured(
     output: type[T],
     *,
     step: str,
-    model: str = MODEL,
+    model: str | None = None,
     effort: str = "medium",
     max_tokens: int = 16000,
 ) -> tuple[T, dict]:
     """Ask the model for an answer that matches the `output` schema."""
+    model = model or config.MODEL
     start = time.perf_counter()
     response = client().messages.parse(
         model=model,

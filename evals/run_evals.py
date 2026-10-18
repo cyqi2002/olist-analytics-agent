@@ -2,6 +2,7 @@
 
     python evals/run_evals.py --system baseline
     python evals/run_evals.py --system pipeline --split test
+    python evals/run_evals.py --system pipeline --model claude-haiku-5-5
     python evals/run_evals.py --check-gold      # gold SQL runs and matches itself
     python evals/run_evals.py --report          # print the summary table from saved results
 
@@ -23,12 +24,14 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from agent import config  # noqa: E402
 from agent.db import run_query  # noqa: E402
 from evals.compare import results_match  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 RESULTS_DIR = HERE / "results"
 SYSTEMS = ["baseline", "baseline_context", "pipeline_no_retry", "pipeline"]
+DEFAULT_MODEL = config.MODEL
 
 
 def load_questions(split: str = "all", ids: list[str] | None = None) -> list[dict]:
@@ -111,6 +114,10 @@ def summarize(records: list[dict]) -> dict:
     }
 
 
+def result_name(system: str, model: str) -> str:
+    return system if model == DEFAULT_MODEL else f"{system}@{model}"
+
+
 def run(system: str, split: str, ids: list[str] | None, workers: int) -> dict:
     qs = load_questions(split, ids)
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -122,8 +129,8 @@ def run(system: str, split: str, ids: list[str] | None, workers: int) -> dict:
     print(json.dumps(summary, indent=2))
     if split == "all" and not ids:
         RESULTS_DIR.mkdir(exist_ok=True)
-        out = {"system": system, "summary": summary, "records": records}
-        (RESULTS_DIR / f"{system}.json").write_text(json.dumps(out, indent=2, default=str))
+        out = {"system": system, "model": config.MODEL, "summary": summary, "records": records}
+        (RESULTS_DIR / f"{result_name(system, config.MODEL)}.json").write_text(json.dumps(out, indent=2, default=str))
     return summary
 
 
@@ -139,17 +146,21 @@ def check_gold() -> None:
 
 
 def report() -> None:
-    header = "| System | Overall | Easy | Medium | Hard | Test split | Avg cost | Avg latency |"
-    lines = [header, "|---|---|---|---|---|---|---|---|"]
-    for system in SYSTEMS:
-        path = RESULTS_DIR / f"{system}.json"
-        if not path.exists():
-            continue
-        s = json.loads(path.read_text())["summary"]
-        lines.append(
-            f"| {system} | {s['accuracy']}% | {s['easy']}% | {s['medium']}% | {s['hard']}% | {s['test']}% "
-            f"| ${s['avg_cost_usd']:.3f} | {s['avg_latency_s']}s |"
-        )
+    header = ("| Model | System | Overall | Easy | Medium | Hard | Test split | Questions retried "
+              "| Avg cost | Avg latency |")
+    lines = [header, "|---|---|---|---|---|---|---|---|---|---|"]
+    models = sorted({json.loads(p.read_text()).get("model", DEFAULT_MODEL) for p in RESULTS_DIR.glob("*.json")},
+                    key=lambda m: m != DEFAULT_MODEL)
+    for model in models:
+        for system in SYSTEMS:
+            path = RESULTS_DIR / f"{result_name(system, model)}.json"
+            if not path.exists():
+                continue
+            s = json.loads(path.read_text())["summary"]
+            lines.append(
+                f"| {model} | {system} | {s['accuracy']}% | {s['easy']}% | {s['medium']}% | {s['hard']}% "
+                f"| {s['test']}% | {s['questions_with_retries']} | ${s['avg_cost_usd']:.3f} | {s['avg_latency_s']}s |"
+            )
     print("\n".join(lines))
 
 
@@ -159,9 +170,11 @@ if __name__ == "__main__":
     parser.add_argument("--split", choices=["all", "dev", "test"], default="all")
     parser.add_argument("--ids", nargs="*")
     parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument("--model", default=config.MODEL)
     parser.add_argument("--check-gold", action="store_true")
     parser.add_argument("--report", action="store_true")
     args = parser.parse_args()
+    config.MODEL = args.model
     if args.check_gold:
         check_gold()
     elif args.report:
