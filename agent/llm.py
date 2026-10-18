@@ -1,6 +1,7 @@
 """Thin wrapper around the Anthropic SDK: one function that returns a validated
 Pydantic object plus a usage record (tokens, cost, latency) for tracking."""
 
+import os
 import time
 from functools import lru_cache
 from typing import TypeVar
@@ -26,7 +27,10 @@ class LLMRefusal(Exception):
 
 @lru_cache(maxsize=1)
 def client() -> anthropic.Anthropic:
-    return anthropic.Anthropic()
+    # keys that aren't scoped to a workspace must name one on every request
+    workspace = os.getenv("ANTHROPIC_WORKSPACE_ID")
+    headers = {"anthropic-workspace-id": workspace} if workspace else None
+    return anthropic.Anthropic(default_headers=headers)
 
 
 def structured(
