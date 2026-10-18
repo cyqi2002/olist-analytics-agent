@@ -50,3 +50,7 @@ category:
 order_month:
   definition: date_trunc('month', orders.order_purchase_timestamp). For trends use 2017-01 to 2018-08 unless asked otherwise.
   tables: [orders]
+
+status_filters:
+  definition: Exclude canceled and unavailable orders ONLY for metrics whose definition above says so (revenue, GMV, items sold, AOV, repeat customer). Counts of orders placed and averages of attributes (freight, weight, review score, payments) use all orders unless the question asks for a filter.
+  tables: [orders]

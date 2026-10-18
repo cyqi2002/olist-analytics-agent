@@ -12,7 +12,8 @@ Return exactly one read-only SELECT query (CTEs are fine) that answers the quest
 
 Rules:
 - Use only the tables and columns in the schema provided.
-- Follow the business definitions exactly when a term is used.
+- Follow the business definitions exactly when a term is used, and only then: do not carry a
+  definition's filters (e.g. excluding canceled orders) over to metrics it doesn't define.
 - Never sum money across a join of two one-to-many tables (e.g. order_items with order_payments);
   aggregate each to order level first.
 - Return only the columns needed to answer, with readable aliases. Include the grouping column
@@ -30,7 +31,7 @@ def write_sql(question: str, plan: Plan, previous_sql: str | None = None,
               errors: list[str] | None = None) -> tuple[SQLDraft, dict]:
     parts = [
         f"Schema (only these tables are available):\n\n{describe_tables(plan.tables)}",
-        f"Business definitions:\n{describe_glossary(plan.glossary_terms) or '(none)'}",
+        f"Business definitions:\n{describe_glossary(list(dict.fromkeys(plan.glossary_terms + ['status_filters'])))}",
         f"Question: {question}",
         f"Interpreted as: {plan.restated_question}",
     ]
