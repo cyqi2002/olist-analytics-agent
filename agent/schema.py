@@ -20,7 +20,10 @@ def glossary() -> dict:
     return yaml.safe_load((HERE / "glossary.yaml").read_text())
 
 
-def describe_table(table: str) -> str:
+def describe_table(table: str, with_docs: bool = True) -> str:
+    if not with_docs:
+        cols = ", ".join(f"{c} {t}" for c, t in catalog()[table].items())
+        return f"TABLE {table} ({cols})"
     doc = schema_docs().get(table, {})
     col_notes = doc.get("columns", {})
     lines = [f"TABLE {table}  -- {doc.get('description', '')}"]
@@ -36,9 +39,9 @@ def describe_table(table: str) -> str:
     return "\n".join(lines)
 
 
-def describe_tables(tables: list[str] | None = None) -> str:
+def describe_tables(tables: list[str] | None = None, with_docs: bool = True) -> str:
     tables = tables or list(catalog())
-    return "\n\n".join(describe_table(t) for t in tables if t in catalog())
+    return "\n\n".join(describe_table(t, with_docs) for t in tables if t in catalog())
 
 
 def table_summaries() -> str:

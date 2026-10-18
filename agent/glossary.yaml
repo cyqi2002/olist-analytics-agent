@@ -2,11 +2,16 @@
 # follow the definition here instead of guessing. Each entry says which tables it needs.
 
 revenue:
+  aliases: [sales]
   definition: sum(order_items.price). Excludes freight. Counts all order statuses except canceled and unavailable.
   tables: [order_items, orders]
 
 gmv:
   definition: Gross merchandise value = sum(order_items.price + order_items.freight_value), excluding canceled and unavailable orders.
+  tables: [order_items, orders]
+
+items_sold:
+  definition: count(*) of order_items rows, excluding canceled and unavailable orders.
   tables: [order_items, orders]
 
 payment_value:
