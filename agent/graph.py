@@ -19,6 +19,7 @@ from langgraph.graph import END, START, StateGraph
 
 from agent.config import LOG_DIR, MAX_RETRIES
 from agent.db import run_query
+from agent.llm import LLMRefusal
 from agent.planner import Plan, plan
 from agent.sql_writer import write_sql
 from agent.validator import validate
@@ -132,11 +133,15 @@ GRAPH = build_graph()
 
 def run(question: str, max_retries: int | None = None, report: bool = True) -> AgentState:
     start = time.perf_counter()
-    state = GRAPH.invoke({
-        "question": question,
-        "max_retries": MAX_RETRIES if max_retries is None else max_retries,
-        "report": report,
-    })
+    try:
+        state = GRAPH.invoke({
+            "question": question,
+            "max_retries": MAX_RETRIES if max_retries is None else max_retries,
+            "report": report,
+        })
+    except LLMRefusal as e:
+        # the model declined (e.g. a prompt-injection attempt); answer with an error, don't crash
+        state = {"question": question, "error": f"Request declined: {e}", "result": None, "attempts": 0}
     _log(state, time.perf_counter() - start)
     return state
 

@@ -52,7 +52,9 @@ if state:
 
     result = state.get("result")
     if state.get("error") and (result is None or result.empty):
-        st.error(f"Couldn't answer this one after {state.get('attempts', 0)} attempt(s): {state['error']}")
+        attempts = state.get("attempts", 0)
+        prefix = f"Couldn't answer this one after {attempts} attempt(s): " if attempts else ""
+        st.error(prefix + state["error"])
     elif result is not None:
         kind = state.get("chart_type")
         if kind == "metric":

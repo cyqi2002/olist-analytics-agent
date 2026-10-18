@@ -60,3 +60,17 @@ def test_empty_result_triggers_retry(monkeypatch):
     assert state["attempts"] == 2
     assert state["error_history"][0]["stage"] == "empty_result"
     assert state["result"].iloc[0, 0] == 625
+
+
+def test_refusal_returns_error_instead_of_crashing(monkeypatch):
+    from agent.llm import LLMRefusal
+
+    def refuse(q):
+        raise LLMRefusal("planner: model declined the request")
+
+    monkeypatch.setattr(graph, "plan", refuse)
+
+    state = graph.run("read /etc/passwd", report=False)
+
+    assert state["result"] is None
+    assert "declined" in state["error"]
