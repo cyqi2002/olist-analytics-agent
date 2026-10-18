@@ -202,7 +202,7 @@ def write_insight(question: str, plan: Plan | None, df: pd.DataFrame) -> tuple[s
 
 def report(question: str, plan: Plan | None, df: pd.DataFrame) -> dict:
     kind = choose_chart(df)
-    title = plan.restated_question if plan else question
+    title = question  # the restated question is shown above the chart and is too long for a title
     fig = build_chart(df, kind, title)
     if df is None or df.empty:
         return {"chart": None, "chart_type": "table", "insight": "The query returned no rows.",

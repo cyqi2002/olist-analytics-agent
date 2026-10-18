@@ -18,6 +18,11 @@ EXAMPLES = [
     "Which states have the longest delivery times?",
 ]
 
+def md(text: str) -> str:
+    """Escape '$' so Streamlit doesn't render amounts like R$1,234 as LaTeX."""
+    return text.replace("$", "\\$")
+
+
 st.title("Olist Analytics Agent")
 st.caption("Ask a business question about the Olist marketplace (100k orders, 2016-2018). "
            "The agent plans the query, writes and validates SQL, runs it, and summarises the result.")
@@ -43,12 +48,12 @@ state = st.session_state.get("state")
 if state:
     plan = state.get("plan")
     if plan:
-        st.markdown(f"**Interpreted as:** {plan.restated_question}")
+        st.markdown(f"**Interpreted as:** {md(plan.restated_question)}")
         if plan.assumptions:
-            st.markdown("**Assumptions:** " + " · ".join(plan.assumptions))
+            st.markdown("**Assumptions:** " + md(" · ".join(plan.assumptions)))
         if plan.clarifying_question:
             st.info(f"This question is open to interpretation. The agent went ahead with the assumptions "
-                    f"above, but you may want to clarify: *{plan.clarifying_question}*")
+                    f"above, but you may want to clarify: *{md(plan.clarifying_question)}*")
 
     result = state.get("result")
     if state.get("error") and (result is None or result.empty):
@@ -69,7 +74,7 @@ if state:
 
         if state.get("insight"):
             st.subheader("Insight")
-            st.write(state["insight"])
+            st.markdown(md(state["insight"]))
             check = state.get("insight_check", {})
             if check and not check.get("passed", True):
                 st.warning("Some numbers in this summary could not be matched to the result: "
@@ -82,7 +87,7 @@ if state:
     with st.expander("SQL"):
         st.code(state.get("sql") or "", language="sql")
         if state.get("explanation"):
-            st.caption(state["explanation"])
+            st.caption(md(state["explanation"]))
         history = state.get("error_history", [])
         if history:
             st.markdown(f"**Caught and fixed {len(history)} problem(s) before answering:**")
