@@ -1,0 +1,105 @@
+# Hand-written descriptions of the Olist tables. Column names and types are read
+# from the database at runtime; this file adds the meaning the model can't infer.
+
+orders:
+  description: One row per order placed on the marketplace (Sep 2016 - Oct 2018).
+  grain: one row per order_id
+  joins:
+    - orders.customer_id = customers.customer_id
+    - orders.order_id = order_items.order_id  (one order -> many items)
+    - orders.order_id = order_payments.order_id  (one order -> many payments)
+    - orders.order_id = order_reviews.order_id  (one order -> usually one review)
+  columns:
+    order_status: "delivered (97%), shipped, canceled, unavailable, invoiced, processing, created, approved"
+    order_purchase_timestamp: when the customer placed the order; use this for "when" questions about orders and sales
+    order_delivered_customer_date: actual delivery date; NULL when not delivered
+    order_estimated_delivery_date: delivery date promised to the customer at purchase
+  notes:
+    - Data is sparse before 2017-01 and after 2018-08 (2016-11 has no orders, 2018-09 and 2018-10 only have ~20). Exclude those months from trend analysis unless asked.
+    - 775 orders (mostly canceled/unavailable) have no rows in order_items.
+
+customers:
+  description: One row per (customer, order). Olist issues a new customer_id for every order.
+  grain: one row per customer_id
+  joins:
+    - customers.customer_id = orders.customer_id
+  columns:
+    customer_id: key used by orders; unique per ORDER, not per person
+    customer_unique_id: the real person. Use this to count customers or find repeat buyers.
+    customer_state: two-letter Brazilian state code, e.g. SP, RJ, MG
+    customer_zip_code_prefix: first 5 digits of the zip code (text, keeps leading zeros)
+  notes:
+    - 99,441 customer_ids but only 96,096 customer_unique_ids. Counting customer_id overstates customers and hides repeat buyers.
+
+order_items:
+  description: Line items. One row per item in an order; an order with 3 units of a product has 3 rows.
+  grain: one row per (order_id, order_item_id)
+  joins:
+    - order_items.order_id = orders.order_id
+    - order_items.product_id = products.product_id
+    - order_items.seller_id = sellers.seller_id
+  columns:
+    order_item_id: sequence number of the item inside the order (1, 2, 3...)
+    price: item price in BRL, excluding freight
+    freight_value: freight charged for this item in BRL
+  notes:
+    - Count items with count(*), orders with count(DISTINCT order_id).
+
+order_payments:
+  description: Payments for an order. An order can be paid with several methods or vouchers.
+  grain: one row per (order_id, payment_sequential)
+  joins:
+    - order_payments.order_id = orders.order_id
+  columns:
+    payment_type: "credit_card, boleto (Brazilian bank slip), voucher, debit_card, not_defined"
+    payment_installments: number of instalments chosen for a credit card payment
+    payment_value: amount paid in BRL; sum per order equals items price + freight
+  notes:
+    - Never join order_payments and order_items directly to sum money - both are one-to-many on order_id, so the join multiplies rows and double-counts. Aggregate each to order level first.
+
+order_reviews:
+  description: Customer satisfaction reviews sent after delivery.
+  grain: roughly one row per order (a few orders have several reviews)
+  joins:
+    - order_reviews.order_id = orders.order_id
+  columns:
+    review_score: 1 (worst) to 5 (best)
+    review_comment_message: free text in Portuguese; often NULL
+    review_creation_date: date the review survey was sent
+
+products:
+  description: Product catalogue.
+  grain: one row per product_id
+  joins:
+    - products.product_id = order_items.product_id
+    - products.product_category_name = category_translation.product_category_name
+  columns:
+    product_category_name: category in PORTUGUESE (e.g. cama_mesa_banho). Join category_translation for English.
+    product_weight_g: weight in grams
+  notes:
+    - 610 products have NULL category. Two categories (pc_gamer, portateis_cozinha_e_preparadores_de_alimentos) have no English translation; use LEFT JOIN and coalesce to the Portuguese name.
+
+category_translation:
+  description: Portuguese -> English product category names.
+  grain: one row per product_category_name
+  joins:
+    - category_translation.product_category_name = products.product_category_name
+  columns:
+    product_category_name_english: e.g. bed_bath_table, health_beauty, sports_leisure
+
+sellers:
+  description: Third-party sellers who list products on Olist.
+  grain: one row per seller_id
+  joins:
+    - sellers.seller_id = order_items.seller_id
+  columns:
+    seller_state: two-letter Brazilian state code
+
+geolocation:
+  description: Zip-code prefix to latitude/longitude lookup.
+  grain: MANY rows per zip prefix (1M rows, 19k prefixes)
+  joins:
+    - geolocation.geolocation_zip_code_prefix = customers.customer_zip_code_prefix
+    - geolocation.geolocation_zip_code_prefix = sellers.seller_zip_code_prefix
+  notes:
+    - Joining directly multiplies rows. Aggregate first (e.g. avg lat/lng per prefix). Only use this table for location coordinates.

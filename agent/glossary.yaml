@@ -1,0 +1,47 @@
+# Business definitions. When a question uses one of these terms, the SQL must
+# follow the definition here instead of guessing. Each entry says which tables it needs.
+
+revenue:
+  definition: sum(order_items.price). Excludes freight. Counts all order statuses except canceled and unavailable.
+  tables: [order_items, orders]
+
+gmv:
+  definition: Gross merchandise value = sum(order_items.price + order_items.freight_value), excluding canceled and unavailable orders.
+  tables: [order_items, orders]
+
+payment_value:
+  definition: Money actually paid, sum(order_payments.payment_value). Use only when the question asks about payments or payment methods.
+  tables: [order_payments]
+
+aov:
+  aliases: [average order value, basket size]
+  definition: revenue / count(DISTINCT order_id), using the revenue definition above.
+  tables: [order_items, orders]
+
+customer:
+  definition: A person, identified by customers.customer_unique_id. Never count customer_id as customers.
+  tables: [customers]
+
+repeat_customer:
+  definition: A customer_unique_id with 2 or more distinct orders (any status except canceled and unavailable).
+  tables: [customers, orders]
+
+delivered_order:
+  definition: orders.order_status = 'delivered' AND order_delivered_customer_date IS NOT NULL.
+  tables: [orders]
+
+delivery_time:
+  definition: Days from order_purchase_timestamp to order_delivered_customer_date, for delivered orders. Use date_diff('day', ...).
+  tables: [orders]
+
+late_delivery:
+  definition: A delivered order where order_delivered_customer_date > order_estimated_delivery_date.
+  tables: [orders]
+
+category:
+  definition: English category name, coalesce(category_translation.product_category_name_english, products.product_category_name).
+  tables: [products, category_translation]
+
+order_month:
+  definition: date_trunc('month', orders.order_purchase_timestamp). For trends use 2017-01 to 2018-08 unless asked otherwise.
+  tables: [orders]
