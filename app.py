@@ -25,7 +25,7 @@ st.caption("Ask a business question about the Olist marketplace (100k orders, 20
 with st.sidebar:
     st.subheader("Try an example")
     for ex in EXAMPLES:
-        if st.button(ex, use_container_width=True):
+        if st.button(ex, width="stretch"):
             st.session_state["question"] = ex
     st.divider()
     st.markdown("**Pipeline:** planner → SQL writer → validator → DuckDB → reporter. "
@@ -61,9 +61,9 @@ if state:
             value = result.iloc[0][col]
             st.metric(label=col.replace("_", " "), value=f"{value:,.2f}" if isinstance(value, float) else value)
         elif state.get("chart") is not None:
-            st.plotly_chart(state["chart"], use_container_width=True)
+            st.plotly_chart(state["chart"], width="stretch")
         else:
-            st.dataframe(result, use_container_width=True, hide_index=True)
+            st.dataframe(result, width="stretch", hide_index=True)
 
         if state.get("insight"):
             st.subheader("Insight")
@@ -74,7 +74,7 @@ if state:
                            + ", ".join(check["unsupported_numbers"]))
 
         with st.expander(f"Data ({len(result)} rows)"):
-            st.dataframe(result, use_container_width=True, hide_index=True)
+            st.dataframe(result, width="stretch", hide_index=True)
             st.download_button("Download CSV", result.to_csv(index=False), "result.csv", "text/csv")
 
     with st.expander("SQL"):
