@@ -159,7 +159,7 @@ def report() -> None:
             s = json.loads(path.read_text())["summary"]
             lines.append(
                 f"| {model} | {system} | {s['accuracy']}% | {s['easy']}% | {s['medium']}% | {s['hard']}% "
-                f"| {s['test']}% | {s['questions_with_retries']} | ${s['avg_cost_usd']:.3f} | {s['avg_latency_s']}s |"
+                f"| {s['test']}% | {s['questions_with_retries']} | ${s['avg_cost_usd']:.4f} | {s['avg_latency_s']}s |"
             )
     print("\n".join(lines))
 
