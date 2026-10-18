@@ -1,0 +1,347 @@
+# Eval set: 30 questions with hand-written gold SQL.
+# Results are compared as sets of rows (see evals/compare.py), so column names
+# and row order don't matter, but the values and the number of rows do.
+# split: dev questions may be used while tuning prompts; test questions are held out.
+
+- id: e01
+  difficulty: easy
+  split: dev
+  question: How many orders are in the dataset?
+  gold_sql: SELECT count(*) AS orders FROM orders
+
+- id: e02
+  difficulty: easy
+  split: test
+  question: How many unique customers have placed an order?
+  gold_sql: SELECT count(DISTINCT customer_unique_id) AS customers FROM customers
+
+- id: e03
+  difficulty: easy
+  split: dev
+  question: How many sellers are based in the state of São Paulo (SP)?
+  gold_sql: SELECT count(*) AS sellers FROM sellers WHERE seller_state = 'SP'
+
+- id: e04
+  difficulty: easy
+  split: test
+  question: What is the average review score?
+  gold_sql: SELECT avg(review_score) AS avg_score FROM order_reviews
+
+- id: e05
+  difficulty: easy
+  split: dev
+  question: How many orders were canceled?
+  gold_sql: SELECT count(*) AS canceled_orders FROM orders WHERE order_status = 'canceled'
+
+- id: e06
+  difficulty: easy
+  split: dev
+  question: How many payments were made with each payment type?
+  gold_sql: SELECT payment_type, count(*) AS payments FROM order_payments GROUP BY payment_type
+
+- id: e07
+  difficulty: easy
+  split: test
+  question: What is the most common number of instalments for credit card payments?
+  gold_sql: |
+    SELECT payment_installments
+    FROM order_payments
+    WHERE payment_type = 'credit_card'
+    GROUP BY payment_installments
+    ORDER BY count(*) DESC
+    LIMIT 1
+
+- id: e08
+  difficulty: easy
+  split: dev
+  question: How many orders were placed in 2017?
+  gold_sql: SELECT count(*) AS orders FROM orders WHERE year(order_purchase_timestamp) = 2017
+
+- id: e09
+  difficulty: easy
+  split: test
+  question: How many reviews were given at each review score?
+  gold_sql: SELECT review_score, count(*) AS reviews FROM order_reviews GROUP BY review_score
+
+- id: e10
+  difficulty: easy
+  split: dev
+  question: What is the total payment value for each payment type?
+  gold_sql: SELECT payment_type, sum(payment_value) AS total_paid FROM order_payments GROUP BY payment_type
+
+- id: m01
+  difficulty: medium
+  split: dev
+  question: What are the top 5 product categories by revenue? Use English category names.
+  gold_sql: |
+    SELECT coalesce(t.product_category_name_english, p.product_category_name) AS category,
+           sum(i.price) AS revenue
+    FROM order_items i
+    JOIN orders o USING (order_id)
+    JOIN products p USING (product_id)
+    LEFT JOIN category_translation t USING (product_category_name)
+    WHERE o.order_status NOT IN ('canceled', 'unavailable')
+    GROUP BY 1
+    ORDER BY revenue DESC
+    LIMIT 5
+
+- id: m02
+  difficulty: medium
+  split: test
+  question: Which 5 customer states placed the most orders?
+  gold_sql: |
+    SELECT c.customer_state, count(*) AS orders
+    FROM orders o JOIN customers c USING (customer_id)
+    GROUP BY 1
+    ORDER BY orders DESC
+    LIMIT 5
+
+- id: m03
+  difficulty: medium
+  split: dev
+  question: Which 5 customer states have the longest average delivery time in days?
+  gold_sql: |
+    SELECT c.customer_state,
+           avg(date_diff('day', o.order_purchase_timestamp, o.order_delivered_customer_date)) AS avg_days
+    FROM orders o JOIN customers c USING (customer_id)
+    WHERE o.order_status = 'delivered' AND o.order_delivered_customer_date IS NOT NULL
+    GROUP BY 1
+    ORDER BY avg_days DESC
+    LIMIT 5
+
+- id: m04
+  difficulty: medium
+  split: test
+  question: Who are the top 10 sellers by revenue?
+  gold_sql: |
+    SELECT i.seller_id, sum(i.price) AS revenue
+    FROM order_items i JOIN orders o USING (order_id)
+    WHERE o.order_status NOT IN ('canceled', 'unavailable')
+    GROUP BY 1
+    ORDER BY revenue DESC
+    LIMIT 10
+
+- id: m05
+  difficulty: medium
+  split: dev
+  question: Which 5 customer states have the highest average order value?
+  gold_sql: |
+    SELECT c.customer_state, sum(i.price) / count(DISTINCT o.order_id) AS aov
+    FROM order_items i
+    JOIN orders o USING (order_id)
+    JOIN customers c USING (customer_id)
+    WHERE o.order_status NOT IN ('canceled', 'unavailable')
+    GROUP BY 1
+    ORDER BY aov DESC
+    LIMIT 5
+
+- id: m06
+  difficulty: medium
+  split: test
+  question: For each review score, what is the average delivery time in days?
+  gold_sql: |
+    SELECT r.review_score,
+           avg(date_diff('day', o.order_purchase_timestamp, o.order_delivered_customer_date)) AS avg_days
+    FROM order_reviews r JOIN orders o USING (order_id)
+    WHERE o.order_status = 'delivered' AND o.order_delivered_customer_date IS NOT NULL
+    GROUP BY 1
+
+- id: m07
+  difficulty: medium
+  split: dev
+  question: Which 5 product categories have the highest average freight value per item? Use English names.
+  gold_sql: |
+    SELECT coalesce(t.product_category_name_english, p.product_category_name) AS category,
+           avg(i.freight_value) AS avg_freight
+    FROM order_items i
+    JOIN products p USING (product_id)
+    LEFT JOIN category_translation t USING (product_category_name)
+    GROUP BY 1
+    ORDER BY avg_freight DESC
+    LIMIT 5
+
+- id: m08
+  difficulty: medium
+  split: test
+  question: Which 5 seller states sold the most items?
+  gold_sql: |
+    SELECT s.seller_state, count(*) AS items_sold
+    FROM order_items i
+    JOIN orders o USING (order_id)
+    JOIN sellers s USING (seller_id)
+    WHERE o.order_status NOT IN ('canceled', 'unavailable')
+    GROUP BY 1
+    ORDER BY items_sold DESC
+    LIMIT 5
+
+- id: m09
+  difficulty: medium
+  split: dev
+  question: On average, how many items does an order contain?
+  gold_sql: SELECT count(*) / count(DISTINCT order_id) AS avg_items FROM order_items
+
+- id: m10
+  difficulty: medium
+  split: test
+  question: How many orders were placed in each month from January to August 2018?
+  gold_sql: |
+    SELECT date_trunc('month', order_purchase_timestamp) AS month, count(*) AS orders
+    FROM orders
+    WHERE order_purchase_timestamp >= '2018-01-01' AND order_purchase_timestamp < '2018-09-01'
+    GROUP BY 1
+
+- id: h01
+  difficulty: hard
+  split: dev
+  question: How have sales trended month by month?
+  gold_sql: |
+    SELECT date_trunc('month', o.order_purchase_timestamp) AS month, sum(i.price) AS revenue
+    FROM order_items i JOIN orders o USING (order_id)
+    WHERE o.order_status NOT IN ('canceled', 'unavailable')
+      AND o.order_purchase_timestamp >= '2017-01-01' AND o.order_purchase_timestamp < '2018-09-01'
+    GROUP BY 1
+
+- id: h02
+  difficulty: hard
+  split: test
+  question: What percentage of customers are repeat customers?
+  gold_sql: |
+    WITH per_customer AS (
+      SELECT c.customer_unique_id, count(DISTINCT o.order_id) AS n_orders
+      FROM orders o JOIN customers c USING (customer_id)
+      WHERE o.order_status NOT IN ('canceled', 'unavailable')
+      GROUP BY 1
+    )
+    SELECT 100.0 * count(*) FILTER (WHERE n_orders >= 2) / count(*) AS repeat_pct
+    FROM per_customer
+
+- id: h03
+  difficulty: hard
+  split: dev
+  question: What share of delivered orders arrived later than the estimated delivery date, by month in 2018?
+  gold_sql: |
+    SELECT date_trunc('month', order_purchase_timestamp) AS month,
+           100.0 * count(*) FILTER (WHERE order_delivered_customer_date > order_estimated_delivery_date) / count(*) AS late_pct
+    FROM orders
+    WHERE order_status = 'delivered' AND order_delivered_customer_date IS NOT NULL
+      AND order_purchase_timestamp >= '2018-01-01' AND order_purchase_timestamp < '2018-09-01'
+    GROUP BY 1
+
+- id: h04
+  difficulty: hard
+  split: test
+  question: What was the month-over-month revenue growth rate in 2018, from February to August?
+  gold_sql: |
+    WITH monthly AS (
+      SELECT date_trunc('month', o.order_purchase_timestamp) AS month, sum(i.price) AS revenue
+      FROM order_items i JOIN orders o USING (order_id)
+      WHERE o.order_status NOT IN ('canceled', 'unavailable')
+        AND o.order_purchase_timestamp >= '2018-01-01' AND o.order_purchase_timestamp < '2018-09-01'
+      GROUP BY 1
+    )
+    SELECT month, 100.0 * (revenue / lag(revenue) OVER (ORDER BY month) - 1) AS growth_pct
+    FROM monthly
+    QUALIFY month >= '2018-02-01'
+
+- id: h05
+  difficulty: hard
+  split: dev
+  question: Do late deliveries get worse reviews? Compare the average review score of late and on-time delivered orders.
+  compare: numeric_only  # label wording (true/false, late/on time) is free-form
+  gold_sql: |
+    SELECT o.order_delivered_customer_date > o.order_estimated_delivery_date AS is_late,
+           avg(r.review_score) AS avg_score
+    FROM orders o JOIN order_reviews r USING (order_id)
+    WHERE o.order_status = 'delivered' AND o.order_delivered_customer_date IS NOT NULL
+    GROUP BY 1
+
+- id: h06
+  difficulty: hard
+  split: test
+  question: Among product categories with at least 1,000 reviewed orders, which 5 have the lowest average review score? Use English names.
+  notes: Each order is counted once per category, so multi-item orders don't weight the average.
+  gold_sql: |
+    WITH order_category AS (
+      SELECT DISTINCT i.order_id,
+             coalesce(t.product_category_name_english, p.product_category_name) AS category
+      FROM order_items i
+      JOIN products p USING (product_id)
+      LEFT JOIN category_translation t USING (product_category_name)
+      WHERE p.product_category_name IS NOT NULL
+    )
+    SELECT oc.category, avg(r.review_score) AS avg_score
+    FROM order_category oc JOIN order_reviews r USING (order_id)
+    GROUP BY 1
+    HAVING count(DISTINCT oc.order_id) >= 1000
+    ORDER BY avg_score
+    LIMIT 5
+
+- id: h07
+  difficulty: hard
+  split: dev
+  question: Among customer states with at least 1,000 delivered orders, which has the highest late delivery rate?
+  gold_sql: |
+    SELECT c.customer_state,
+           100.0 * count(*) FILTER (WHERE o.order_delivered_customer_date > o.order_estimated_delivery_date) / count(*) AS late_pct
+    FROM orders o JOIN customers c USING (customer_id)
+    WHERE o.order_status = 'delivered' AND o.order_delivered_customer_date IS NOT NULL
+    GROUP BY 1
+    HAVING count(*) >= 1000
+    ORDER BY late_pct DESC
+    LIMIT 1
+
+- id: h08
+  difficulty: hard
+  split: test
+  question: What share of total revenue comes from the top 10% of sellers?
+  gold_sql: |
+    WITH seller_rev AS (
+      SELECT i.seller_id, sum(i.price) AS revenue
+      FROM order_items i JOIN orders o USING (order_id)
+      WHERE o.order_status NOT IN ('canceled', 'unavailable')
+      GROUP BY 1
+    ), ranked AS (
+      SELECT revenue, ntile(10) OVER (ORDER BY revenue DESC) AS decile FROM seller_rev
+    )
+    SELECT 100.0 * sum(revenue) FILTER (WHERE decile = 1) / sum(revenue) AS top10_share_pct
+    FROM ranked
+
+- id: h09
+  difficulty: hard
+  split: dev
+  question: For customers who ordered more than once, what is the average number of days between their first and second order?
+  gold_sql: |
+    WITH customer_orders AS (
+      SELECT c.customer_unique_id, o.order_purchase_timestamp,
+             row_number() OVER (PARTITION BY c.customer_unique_id ORDER BY o.order_purchase_timestamp) AS n
+      FROM orders o JOIN customers c USING (customer_id)
+      WHERE o.order_status NOT IN ('canceled', 'unavailable')
+    )
+    SELECT avg(date_diff('day', a.order_purchase_timestamp, b.order_purchase_timestamp)) AS avg_days
+    FROM customer_orders a
+    JOIN customer_orders b ON a.customer_unique_id = b.customer_unique_id AND a.n = 1 AND b.n = 2
+
+- id: h10
+  difficulty: hard
+  split: test
+  question: Which 5 product categories grew revenue the most from 2017 to 2018? Compare January to August of each year, in absolute terms, using English names.
+  gold_sql: |
+    WITH cat_rev AS (
+      SELECT coalesce(t.product_category_name_english, p.product_category_name) AS category,
+             year(o.order_purchase_timestamp) AS yr,
+             sum(i.price) AS revenue
+      FROM order_items i
+      JOIN orders o USING (order_id)
+      JOIN products p USING (product_id)
+      LEFT JOIN category_translation t USING (product_category_name)
+      WHERE o.order_status NOT IN ('canceled', 'unavailable')
+        AND month(o.order_purchase_timestamp) BETWEEN 1 AND 8
+        AND year(o.order_purchase_timestamp) IN (2017, 2018)
+      GROUP BY 1, 2
+    )
+    SELECT category,
+           sum(revenue) FILTER (WHERE yr = 2018) - coalesce(sum(revenue) FILTER (WHERE yr = 2017), 0) AS growth
+    FROM cat_rev
+    GROUP BY 1
+    ORDER BY growth DESC
+    LIMIT 5
