@@ -36,7 +36,7 @@ delivered_order:
   tables: [orders]
 
 delivery_time:
-  definition: Days from order_purchase_timestamp to order_delivered_customer_date, for delivered orders. Use date_diff('day', ...).
+  definition: Fractional days from order_purchase_timestamp to order_delivered_customer_date, for delivered orders = date_diff('second', start, end) / 86400.0. Measure any other gap in days the same way.
   tables: [orders]
 
 late_delivery:

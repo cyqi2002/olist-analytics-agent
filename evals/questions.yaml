@@ -102,7 +102,7 @@
   question: Which 5 customer states have the longest average delivery time in days?
   gold_sql: |
     SELECT c.customer_state,
-           avg(date_diff('day', o.order_purchase_timestamp, o.order_delivered_customer_date)) AS avg_days
+           avg(date_diff('second', o.order_purchase_timestamp, o.order_delivered_customer_date) / 86400.0) AS avg_days
     FROM orders o JOIN customers c USING (customer_id)
     WHERE o.order_status = 'delivered' AND o.order_delivered_customer_date IS NOT NULL
     GROUP BY 1
@@ -141,7 +141,7 @@
   question: For each review score, what is the average delivery time in days?
   gold_sql: |
     SELECT r.review_score,
-           avg(date_diff('day', o.order_purchase_timestamp, o.order_delivered_customer_date)) AS avg_days
+           avg(date_diff('second', o.order_purchase_timestamp, o.order_delivered_customer_date) / 86400.0) AS avg_days
     FROM order_reviews r JOIN orders o USING (order_id)
     WHERE o.order_status = 'delivered' AND o.order_delivered_customer_date IS NOT NULL
     GROUP BY 1
@@ -317,7 +317,7 @@
       FROM orders o JOIN customers c USING (customer_id)
       WHERE o.order_status NOT IN ('canceled', 'unavailable')
     )
-    SELECT avg(date_diff('day', a.order_purchase_timestamp, b.order_purchase_timestamp)) AS avg_days
+    SELECT avg(date_diff('second', a.order_purchase_timestamp, b.order_purchase_timestamp) / 86400.0) AS avg_days
     FROM customer_orders a
     JOIN customer_orders b ON a.customer_unique_id = b.customer_unique_id AND a.n = 1 AND b.n = 2
 
