@@ -8,7 +8,7 @@ validated SQL, a chart and a three-sentence insight - without waiting for an ana
 > SQL is written, validated and run on DuckDB → horizontal bar chart + insight whose numbers
 > are checked against the result.
 
-<!-- demo GIF: docs/demo.gif -->
+![Demo: asking for the top revenue categories](docs/demo.gif)
 
 ## The problem
 
