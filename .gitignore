@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.pytest_cache/
+
+# Olist raw CSVs (download from Kaggle) and the built database
+data/raw/
+data/*.duckdb
+data/*.duckdb.wal
+
+# run logs; eval reports in evals/results/ are committed
+logs/
